@@ -18,11 +18,14 @@ async function getInventory(req, res, next) {
       else if (prod.stock <= 5) lowStockCount++;
 
       return {
+        ...prod,
         id: prod._id.toString(),
         title: prod.title,
+        description: prod.description || "",
         category: prod.category,
         price: prod.price,
         stock: prod.stock,
+        imageUrl: prod.imageUrl || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=800&auto=format&fit=crop&q=80",
         isAvailable: prod.stock > 0,
         stockStatus:
           prod.stock > 10

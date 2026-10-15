@@ -13,6 +13,7 @@ router.post(
   idempotencyMiddleware({ required: false }),
   orderController.createOrder
 );
+router.post("/create-payment-intent", orderController.createStripePaymentIntent);
 router.get("/my-orders", orderController.getMyOrders);
 router.get("/:id", orderController.getOrderById);
 router.post("/:id/cancel", orderController.cancelOrder);

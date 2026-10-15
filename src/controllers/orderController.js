@@ -549,6 +549,59 @@ async function restoreOrderInventory(db, order) {
   }
 }
 
+/**
+ * POST /api/orders/create-payment-intent
+ * Creates a Stripe PaymentIntent with amount and idempotency metadata
+ */
+async function createStripePaymentIntent(req, res, next) {
+  try {
+    const { amount, currency = "usd", items, idempotencyKey } = req.body;
+
+    if (!amount || Number(amount) <= 0) {
+      throw new BadRequestError("A valid payment amount greater than 0 is required.");
+    }
+
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeSecretKey || stripeSecretKey.includes("your_stripe_secret_key")) {
+      // Return a simulated client secret for development / demo if keys aren't added yet
+      return res.status(200).json({
+        success: true,
+        isSimulated: true,
+        clientSecret: `simulated_pi_${Date.now()}_secret_${Math.random().toString(36).substring(2, 9)}`,
+        publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
+        message: "Stripe test mode (Simulated). Provide STRIPE_SECRET_KEY in server .env for live Stripe gateway.",
+      });
+    }
+
+    const Stripe = require("stripe");
+    const stripe = new Stripe(stripeSecretKey);
+
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: Math.round(Number(amount) * 100), // Stripe expects amounts in cents
+        currency,
+        automatic_payment_methods: { enabled: true },
+        metadata: {
+          customerId: req.user?.id || req.user?._id?.toString() || "guest",
+          customerEmail: req.user?.email || "customer@edvexa.com",
+          idempotencyKey: idempotencyKey || "",
+        },
+      },
+      idempotencyKey ? { idempotencyKey: `pi_${idempotencyKey}` } : undefined
+    );
+
+    res.status(200).json({
+      success: true,
+      isSimulated: false,
+      clientSecret: paymentIntent.client_secret,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 module.exports = {
   createOrder,
   getMyOrders,
@@ -556,4 +609,6 @@ module.exports = {
   getOrderById,
   updateOrderStatus,
   cancelOrder,
+  createStripePaymentIntent,
 };
+
