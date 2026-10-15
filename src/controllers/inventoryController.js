@@ -11,11 +11,16 @@ async function getInventory(req, res, next) {
     let totalInventoryCount = 0;
     let lowStockCount = 0;
     let outOfStockCount = 0;
+    let totalInventoryValuation = 0;
 
     const formatted = products.map((prod) => {
-      totalInventoryCount += prod.stock || 0;
-      if (prod.stock === 0) outOfStockCount++;
-      else if (prod.stock <= 5) lowStockCount++;
+      const stock = Number(prod.stock) || 0;
+      const price = Number(prod.price) || 0;
+      totalInventoryCount += stock;
+      totalInventoryValuation += stock * price;
+
+      if (stock === 0) outOfStockCount++;
+      else if (stock <= 5) lowStockCount++;
 
       return {
         ...prod,
@@ -23,25 +28,29 @@ async function getInventory(req, res, next) {
         title: prod.title,
         description: prod.description || "",
         category: prod.category,
-        price: prod.price,
-        stock: prod.stock,
+        price,
+        stock,
         imageUrl: prod.imageUrl || "https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=800&auto=format&fit=crop&q=80",
-        isAvailable: prod.stock > 0,
+        isAvailable: stock > 0,
         stockStatus:
-          prod.stock > 10
+          stock > 10
             ? "in_stock"
-            : prod.stock > 0
+            : stock > 0
             ? "low_stock"
             : "out_of_stock",
         updatedAt: prod.updatedAt,
       };
     });
 
+    totalInventoryValuation = Math.round(totalInventoryValuation * 100) / 100;
+
     res.status(200).json({
       success: true,
       stats: {
         totalProducts: products.length,
         totalInventoryCount,
+        totalStockUnits: totalInventoryCount,
+        totalInventoryValuation,
         lowStockCount,
         outOfStockCount,
       },
