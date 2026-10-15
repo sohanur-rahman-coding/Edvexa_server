@@ -73,9 +73,15 @@ async function adjustStock(req, res, next) {
       throw new NotFoundError(`Product with ID '${productId}' not found.`);
     }
 
+    // Normalize operation to support both increment/decrement and add/deduct
+    const normalizedOp =
+      operation === "add" ? "increment" :
+      operation === "deduct" ? "decrement" :
+      operation;
+
     let updatedProduct;
 
-    if (operation === "set") {
+    if (normalizedOp === "set") {
       if (numAmount < 0) {
         throw new BadRequestError("Stock cannot be set to a negative number.");
       }
@@ -84,7 +90,7 @@ async function adjustStock(req, res, next) {
         { $set: { stock: numAmount, updatedAt: new Date() } },
         { returnDocument: "after" }
       );
-    } else if (operation === "increment") {
+    } else if (normalizedOp === "increment") {
       if (numAmount < 0) {
         throw new BadRequestError("Increment amount must be positive.");
       }
@@ -93,7 +99,7 @@ async function adjustStock(req, res, next) {
         { $inc: { stock: numAmount }, $set: { updatedAt: new Date() } },
         { returnDocument: "after" }
       );
-    } else if (operation === "decrement") {
+    } else if (normalizedOp === "decrement") {
       if (numAmount <= 0) {
         throw new BadRequestError("Decrement amount must be greater than zero.");
       }
@@ -110,7 +116,7 @@ async function adjustStock(req, res, next) {
         );
       }
     } else {
-      throw new BadRequestError("Invalid operation. Must be 'set', 'increment', or 'decrement'.");
+      throw new BadRequestError("Invalid operation. Must be 'set', 'increment' (or 'add'), or 'decrement' (or 'deduct').");
     }
 
     res.status(200).json({
@@ -120,6 +126,7 @@ async function adjustStock(req, res, next) {
         id: updatedProduct._id.toString(),
         title: updatedProduct.title,
         stock: updatedProduct.stock,
+        newStock: updatedProduct.stock,
         isAvailable: updatedProduct.stock > 0,
         updatedAt: updatedProduct.updatedAt,
       },
