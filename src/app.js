@@ -10,20 +10,18 @@ const inventoryRoutes = require("./routes/inventoryRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const { errorHandler } = require("./middlewares/errorHandler");
 
+const { connectDB } = require("./config/db");
+
 const app = express();
 
-// Security and CORS configuration
+// Security and CORS configuration (allows Vercel preview & production URLs)
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, or server-to-server)
+      // Allow requests with no origin (like mobile apps, curl, or serverless invocation)
       if (!origin) return callback(null, true);
-      const allowedOrigins = [
-        process.env.CLIENT_URL,
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-      ].filter(Boolean);
-      return callback(null, true); // Allow during dev & testing
+      // Allow the requesting origin so any Vercel domain or localhost can communicate securely
+      return callback(null, origin);
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -32,6 +30,16 @@ app.use(
 );
 
 app.use(express.json());
+
+// Ensure database connection for serverless environments (Vercel)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 // API Health Check & Welcome
 app.get("/", (req, res) => {
